@@ -2,7 +2,7 @@
  * 设置面板头部操作（settings.action 插槽）：在设置面板内容列头部、关闭按钮
  * 之前渲染一个操作按钮。root 级 list；注册者自拥可见性/行为/文案/失败呈现。
  * 参考：ui-settings-general 声明该插槽（目前基本空白）。
- * @module dsh-plugin-template/client/settings-action
+ * @module dsh-agent-pyq/client/settings-action
  */
 
 import React from 'react'

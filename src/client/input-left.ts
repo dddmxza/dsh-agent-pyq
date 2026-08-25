@@ -4,7 +4,7 @@
  * session 级 list；owner 只传点状快照（InputZone），需要实时数据走框架
  * 标准 hook。参考：ui-conversation 声明该插槽，目前没有任何内置插件注册
  * （空白加法位）。
- * @module dsh-plugin-template/client/input-left
+ * @module dsh-agent-pyq/client/input-left
  */
 
 import React from 'react'

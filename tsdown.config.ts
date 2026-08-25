@@ -21,7 +21,7 @@ const CLIENT_EXTERNALS = ['react']
 
 /** Client half: browser config card bundle, output lib/client.js. */
 const client = {
-  name: 'dsh-plugin-template/client',
+  name: 'dsh-agent-pyq/client',
   entry: { client: 'src/client/index.ts' },
   outDir: 'lib',
   format: 'cjs',
@@ -36,7 +36,7 @@ const client = {
   },
   outputOptions: {
     entryFileNames: 'client.js',
-    banner: 'window.__ModuleLoader__.load({ id: "dsh-plugin-template", factory: (require) => {',
+    banner: 'window.__ModuleLoader__.load({ id: "dsh-agent-pyq", factory: (require) => {',
     footer: 'return module.exports; } });',
     intro: 'var module = { exports: {} }; var exports = module.exports;',
   },

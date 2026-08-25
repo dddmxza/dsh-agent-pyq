@@ -3,7 +3,7 @@
  * 操作行里加一个按钮。session 级 list；条目按 order 升序渲染（负值预留给
  * 静态会话上下文）。参考：ui-agent-preset / ui-jobs / ui-subagent 都在这里
  * 注册过按钮。
- * @module dsh-plugin-template/client/header-actions
+ * @module dsh-agent-pyq/client/header-actions
  */
 
 import React from 'react'

@@ -4,7 +4,7 @@
  * 本插槽渲染在输入条内部（bar 的 footer），宽度继承卡片列约束——照 StatsLine
  * 的完整对齐：margin auto 居中 + text-align center（styles.ts），无需自己定位。
  * 参考：ui-conversation 自己注册的 StatsLine（id 'stats'）。
- * @module dsh-plugin-template/client/composer-dock
+ * @module dsh-agent-pyq/client/composer-dock
  */
 
 import React from 'react'

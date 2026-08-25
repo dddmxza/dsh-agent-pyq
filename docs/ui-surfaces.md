@@ -25,7 +25,7 @@ Beyond the slots, the host half demonstrates a tool render intent: the `greet` t
 
 ## Where each one shows up
 
-1. **Config card** — Settings → Plugins → Configurable tab. Editable fields once the harness exposes the `dsh-plugin-template` namespace (see README "The config card on a stock harness"); otherwise a read-only explainer card.
+1. **Config card** — Settings → Plugins → Configurable tab. Editable fields once the harness exposes the `dsh-agent-pyq` namespace (see README "The config card on a stock harness"); otherwise a read-only explainer card.
 2. **Sidebar footer action** — a button at the bottom of the left sidebar, next to Settings. Wide sidebar shows "模板示例操作"; the collapsed rail shows a state dot only (reads the `wide` owner prop).
 3. **Input dock** — a status strip above the composer card in a conversation. Session-scoped: the registration's `inject` factory receives the `sessionId` and hands it to the component. **Layout note:** `conversation.input.dock` renders as a full-width row inside the composer stack; width and centering are each entry's own responsibility. Align with the composer card exactly as the built-in QueueDock does — constrain the width with the framework's layout variables (`--dsh-composer-card-max-width`, `--dsh-composer-dock-inset`) and center with `margin: 0 auto`. Never invent your own widths.
 4. **Shell overlay** — a floating pill on the frame-wide layer (any page). Root-scoped; the layer itself is click-through, and entries opt back into pointer events (`pointer-events: auto` in `styles.ts`). **Layout note:** the layer is an `inset: 0` frame with no entry layout — each entry positions itself; this demo uses a toast-style `position: fixed` bottom-right with a close button.

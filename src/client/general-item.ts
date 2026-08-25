@@ -3,7 +3,7 @@
  * root 级 list——加一个条目就是一行；行自包含（标签、当前值、写路径都是自己的，
  * 参考内置的语言/外观/Composer 回车 行）。本示例是本地状态的开关行，不接
  * settings 命名空间（那属于配置卡片那套数据链路）。
- * @module dsh-plugin-template/client/general-item
+ * @module dsh-agent-pyq/client/general-item
  */
 
 import React from 'react'

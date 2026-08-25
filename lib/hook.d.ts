@@ -2,7 +2,7 @@ import { Context } from "@deepseek-ai/cordis";
 import Schema from "@deepseek-ai/schemastery";
 //#region src/hook.d.ts
 /** 插件显示名（诊断日志中使用）。 */
-declare const name = "dsh-plugin-template-permission-gate";
+declare const name = "dsh-agent-pyq-permission-gate";
 /** 插件配置：禁止模型调用的工具名列表。 */
 interface Config {
   denyTools: string[];

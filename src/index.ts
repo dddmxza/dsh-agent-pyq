@@ -26,7 +26,7 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-export const name = 'moments-plugin'
+export const name = 'dsh-agent-pyq'
 export const inject = ['tools', 'sessionProjections', 'webServer', 'systemPrompt']
 
 interface Moment {

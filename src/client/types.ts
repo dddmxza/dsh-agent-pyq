@@ -3,7 +3,7 @@
  * 声明合并），不 import 任何 @deepseek-ai 客户端包，避免跨插件值导入与版本分裂。
  * 完整契约见 dsh-client-runtime 的 SettingsScope / SettingsScopeBinder 与
  * dsh-client-ui-slots 的插槽系统。
- * @module dsh-plugin-template/client/types
+ * @module dsh-agent-pyq/client/types
  */
 
 /** 一个 settings 命名空间在浏览器侧的同步快照（SettingsScopeSnapshot 的结构子集）。 */

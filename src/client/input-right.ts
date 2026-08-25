@@ -3,7 +3,7 @@
  * 位于工具行右端、发送键旁。session 级 list；与 input.left 同一高度预算
  * （单行）。参考：ui-conversation 声明该插槽，目前没有任何内置插件注册
  * （空白加法位）。
- * @module dsh-plugin-template/client/input-right
+ * @module dsh-agent-pyq/client/input-right
  */
 
 import React from 'react'

@@ -3,7 +3,7 @@
  * 渲染一个右对齐的工具徽标。session 级 list——通过 options.inject 工厂收到
  * sessionId；与 header.actions（操作按钮行）分开，避免挤占标题旁的交互位。
  * 参考：ui-conversation 声明该插槽，目前没有任何内置插件注册（空白加法位）。
- * @module dsh-plugin-template/client/header-utilities
+ * @module dsh-agent-pyq/client/header-utilities
  */
 
 import React from 'react'

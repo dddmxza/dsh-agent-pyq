@@ -2,7 +2,7 @@
  * 消息操作（conversation.chat.assistant-actions 插槽）：在每条 AI 回复消息的
  * 操作条里加一个"收藏"按钮。session 级 list；owner 传被寻址消息的 messageId
  * （本示例不消费它，仅演示按钮位）。参考：ui-message-feedback（id 'feedback'）。
- * @module dsh-plugin-template/client/assistant-actions
+ * @module dsh-agent-pyq/client/assistant-actions
  */
 
 import React from 'react'

@@ -3,7 +3,7 @@
  * 其他插件通过 inject: ['templateService'] 消费，ctx 上的类型由下方
  * declaration merging 提供。该模块经 package.json 的 "./service" 子路径导出，
  * cordis.patch.yml 里对应的插件行默认注释，需要时启用。
- * @module dsh-plugin-template/service
+ * @module dsh-agent-pyq/service
  */
 
 import { Service, type Context } from '@deepseek-ai/cordis'

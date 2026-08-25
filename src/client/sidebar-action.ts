@@ -3,7 +3,7 @@
  * 示例按钮。该插槽是 root 级 list——加一个条目就是加一个按钮；owner 只传
  * 侧栏宽/窄状态（wide），组件据此决定显示完整文案还是仅图标。
  * 参考：ui-sidebar 声明该插槽，目前没有任何内置插件注册（空白加法位）。
- * @module dsh-plugin-template/client/sidebar-action
+ * @module dsh-agent-pyq/client/sidebar-action
  */
 
 import React from 'react'

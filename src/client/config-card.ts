@@ -17,7 +17,7 @@
  *
  * UI 结构参考 harness 内置插件的设置卡片（packages/client/ui-settings-plugins：
  * WebSearchCard / PluginCard / ValueField / card-form）。
- * @module dsh-plugin-template/client/config-card
+ * @module dsh-agent-pyq/client/config-card
  */
 
 import React from 'react'
@@ -364,7 +364,7 @@ function ConfigCard({ form }: { form: CardForm | undefined }): React.ReactElemen
       React.createElement(
         'span',
         { className: 'dtpl-head-text' },
-        React.createElement('span', { className: 'dtpl-name' }, 'dsh-plugin-template'),
+        React.createElement('span', { className: 'dtpl-name' }, 'dsh-agent-pyq'),
         React.createElement('span', { className: 'dtpl-description' }, '示例插件的配置：greeting / maxRetries / verbose'),
       ),
       shell.dirty ? React.createElement('span', { className: 'dtpl-pending' }, '未保存') : null,

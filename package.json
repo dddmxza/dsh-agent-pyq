@@ -1,7 +1,7 @@
 {
-  "name": "dsh-plugin-template",
+  "name": "dsh-agent-pyq",
   "version": "0.1.0",
-  "description": "A starter template for DeepSeek Harness (dsh) plugins: GUI-editable config, tools, events, services, hooks, and a browser client half in one installable bundle.",
+  "description": "An AI moments (朋友圈) plugin for DeepSeek Harness: publish and view moments, with real-time projection updates and a styled browser UI.",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

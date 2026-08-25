@@ -6,7 +6,7 @@
  * 同一命令名来自 src/client/constants.ts）。
  * 参考：ui-conversation 声明该插槽，目前没有任何内置插件注册（空白加法位，
  * 有通用兜底）。
- * @module dsh-plugin-template/client/commandview
+ * @module dsh-agent-pyq/client/commandview
  */
 
 import React from 'react'

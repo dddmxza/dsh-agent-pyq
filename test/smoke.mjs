@@ -30,7 +30,7 @@ const ctx = {
 
 apply(ctx)
 
-assert.equal(name, 'moments-plugin')
+assert.equal(name, 'dsh-agent-pyq')
 assert.deepEqual(inject, ['tools', 'sessionProjections', 'webServer', 'systemPrompt'])
 
 // publish_moment / get_moments_feed 工具

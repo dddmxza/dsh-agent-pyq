@@ -3,7 +3,7 @@
  * root 级 list；选项里的 label 就是标签页文字（可字符串或按 locale 的 thunk，
  * 本示例用固定字符串），id/order 决定位置。参考：ui-settings-plugin-inventory
  * （插件清单 tab，id 'all'）。
- * @module dsh-plugin-template/client/plugins-tab
+ * @module dsh-agent-pyq/client/plugins-tab
  */
 
 import React from 'react'

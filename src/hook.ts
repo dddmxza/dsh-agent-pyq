@@ -2,7 +2,7 @@
  * 可选示例：hook 权限门插件。监听工具执行前的水瀑事件 tools/pre-execute，
  * 命中 Config.denyTools 的工具调用直接拒绝，其余调用 next() 放行。
  * 经 package.json 的 "./hook" 子路径导出，cordis.patch.yml 里对应行默认注释。
- * @module dsh-plugin-template/hook
+ * @module dsh-agent-pyq/hook
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -10,7 +10,7 @@ import Schema from '@deepseek-ai/schemastery'
 import type { PreToolDecision, ToolExecution } from '@deepseek-ai/dsh-tools'
 
 /** 插件显示名（诊断日志中使用）。 */
-export const name = 'dsh-plugin-template-permission-gate'
+export const name = 'dsh-agent-pyq-permission-gate'
 
 /** 插件配置：禁止模型调用的工具名列表。 */
 export interface Config {

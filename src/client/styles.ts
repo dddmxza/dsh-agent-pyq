@@ -2,7 +2,7 @@
  * 客户端半边的一次性样式注入：所有 dtpl-* class 汇总在单个 <style> 里，
  * 颜色全部走主题变量（--dsw-alias-*，见 harness 的
  * ui-theme/src/styles/design-platform.css），深浅色自动适配。
- * @module dsh-plugin-template/client/styles
+ * @module dsh-agent-pyq/client/styles
  */
 
 import { NAMESPACE } from './constants.ts'

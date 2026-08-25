@@ -19,7 +19,7 @@ declare module '@deepseek-ai/cordis' {
     };
   }
 }
-declare const name = "moments-plugin";
+declare const name = "dsh-agent-pyq";
 declare const inject: string[];
 declare function apply(ctx: Context): void;
 //#endregion

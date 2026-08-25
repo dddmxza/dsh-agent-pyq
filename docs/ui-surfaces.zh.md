@@ -25,7 +25,7 @@
 
 ## 各自显示在哪
 
-1. **配置卡片**——设置 → 插件 → Configurable 页。harness 把 `dsh-plugin-template` 命名空间暴露后可编辑（见 README"原版 harness 上的配置卡片"）；否则渲染只读说明卡。
+1. **配置卡片**——设置 → 插件 → Configurable 页。harness 把 `dsh-agent-pyq` 命名空间暴露后可编辑（见 README"原版 harness 上的配置卡片"）；否则渲染只读说明卡。
 2. **侧栏底部按钮**——左侧栏底部"设置"旁的按钮。宽栏显示"模板示例操作"；收起成窄栏（rail）时只显示状态点（读取 `wide` owner prop）。
 3. **输入区 Dock**——会话中输入卡片上方的一行状态条。session 级：注册时的 `inject` 工厂收到 `sessionId` 并交给组件。**布局注意**：`conversation.input.dock` 渲染为 composer 栈内的全宽行，宽度与居中由每个条目自己负责。对齐输入卡片的方式与内置 QueueDock 完全一致——用框架的布局变量（`--dsh-composer-card-max-width`、`--dsh-composer-dock-inset`）约束宽度，用 `margin: 0 auto` 居中；不要自己发明宽度数值。
 4. **全局浮层**——全框架浮层上的一枚 pill（任意页面）。root 级；浮层层本身点击穿透，条目自行 opt-in 指针事件（`styles.ts` 里的 `pointer-events: auto`）。**布局注意**：该层只是 `inset: 0` 的全框层、不提供条目布局——条目自己定位；本示例按 toast 惯例用 `position: fixed` 钉在右下角并带关闭按钮。

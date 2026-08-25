@@ -10,7 +10,7 @@
  * （服务未组合时静默跳过，不影响插件加载）。完整契约见
  * @deepseek-ai/dsh-commands 的 CommandDefinition / CommandInvocation /
  * CommandResult。
- * @module dsh-plugin-template/commands
+ * @module dsh-agent-pyq/commands
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -55,7 +55,7 @@ export function registerHelloCommand(ctx: Context): void {
   ctx.inject(['commands'], (commandCtx) => {
     commandCtx.commands.register({
       name: HELLO_COMMAND_NAME,
-      description: 'dsh-plugin-template 示例命令：回复 world。',
+      description: 'dsh-agent-pyq 示例命令：回复 world。',
       handler: () => ({ kind: 'success', text: 'world' }),
     })
   })
@@ -66,7 +66,7 @@ export function registerDemoCommand(ctx: Context): void {
   ctx.inject(['commands'], (commandCtx) => {
     commandCtx.commands.register({
       name: DEMO_COMMAND_NAME,
-      description: 'dsh-plugin-template 示例命令：原样回显输入。',
+      description: 'dsh-agent-pyq 示例命令：原样回显输入。',
       handler: ({ rawInput }) => ({ kind: 'success', text: `echo: ${rawInput.trim() || '(no input)'}` }),
     })
   })

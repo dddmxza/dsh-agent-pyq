@@ -6,7 +6,7 @@
  * 并带一个关闭按钮，避免挡住任何界面。层本身点击穿透，条目自行 opt-in
  * 指针事件。
  * 参考：ui-layout 声明该插槽，目前没有任何内置插件注册（空白加法位）。
- * @module dsh-plugin-template/client/shell-overlay
+ * @module dsh-agent-pyq/client/shell-overlay
  */
 
 import React from 'react'

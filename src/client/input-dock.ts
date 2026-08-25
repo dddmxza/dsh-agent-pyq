@@ -6,7 +6,7 @@
  * 布局注意：该插槽渲染为全宽行，宽度与居中由条目自己负责（styles.ts 里用
  * --dsh-composer-* 变量对齐输入卡片，与内置 QueueDock 一致）。
  * 参考：ui-goal 的 GoalDock 用同一插槽（id 'goal'，order 10）。
- * @module dsh-plugin-template/client/input-dock
+ * @module dsh-agent-pyq/client/input-dock
  */
 
 import React from 'react'
