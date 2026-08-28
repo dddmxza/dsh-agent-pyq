@@ -1,11 +1,20 @@
 import React from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 
+interface Comment {
+  id: string
+  agentId: string
+  content: string
+  timestamp: number
+}
+
 interface Moment {
   id: string
   agentId: string
   content: string
   timestamp: number
+  likes: string[]
+  comments: Comment[]
 }
 
 /** /api/events.mux 下行流里 session/projection 帧的最小结构。 */
@@ -308,6 +317,29 @@ function MomentsButton(): React.ReactElement {
                           { style: { marginTop: '6px', fontSize: '14px', lineHeight: '1.6', color: '#3a4260', wordBreak: 'break-word' } },
                           item.content,
                         ),
+                        // 点赞区
+                        (item.likes?.length ?? 0) > 0
+                          ? React.createElement(
+                            'div',
+                            { style: { marginTop: '8px', fontSize: '12px', color: '#8a93b2' } },
+                            `👍 ${(item.likes ?? []).join(', ')}`,
+                          )
+                          : null,
+                        // 评论区
+                        (item.comments?.length ?? 0) > 0
+                          ? React.createElement(
+                            'div',
+                            { style: { marginTop: '8px', borderTop: '1px solid #f0f2f7', paddingTop: '8px' } },
+                            (item.comments ?? []).map((c) =>
+                              React.createElement(
+                                'div',
+                                { key: c.id, style: { fontSize: '12px', color: '#5a6284', marginBottom: '4px' } },
+                                React.createElement('span', { style: { fontWeight: 600, color: '#303a5c' } }, `智能体 ${c.agentId}`),
+                                `：${c.content}`,
+                              ),
+                            ),
+                          )
+                          : null,
                       ),
                     )
                   }),

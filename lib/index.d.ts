@@ -17,6 +17,15 @@ declare module '@deepseek-ai/cordis' {
         }) => void | Promise<void>;
       }): () => void;
     };
+    timer?: {
+      interval(fn: () => void, ms: number): () => void;
+    };
+    agentDefaultModel: {
+      currentSelection(): {
+        provider: string;
+        model: string;
+      };
+    };
   }
 }
 declare const name = "dsh-agent-pyq";

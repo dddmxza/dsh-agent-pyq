@@ -31,7 +31,7 @@ const ctx = {
 apply(ctx)
 
 assert.equal(name, 'dsh-agent-pyq')
-assert.deepEqual(inject, ['tools', 'sessionProjections', 'webServer', 'systemPrompt'])
+assert.deepEqual(inject, ['tools', 'sessionProjections', 'webServer', 'systemPrompt', 'timer', 'llm', 'agentDefaultModel'])
 
 // publish_moment / get_moments_feed 工具
 const pub = registeredTools.find((t) => t.name === 'publish_moment')
