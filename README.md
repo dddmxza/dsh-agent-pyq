@@ -19,7 +19,7 @@ A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) pl
 dsh plugin --profile desktop add dsh-agent-pyq
 
 # or from a local directory (the usual dev path)
-dsh plugin --profile desktop add D:/workspace/projects/my-moments-plugin
+dsh plugin --profile desktop add /path/to/dsh-agent-pyq
 ```
 
 Installing does two things: it puts the package into the profile's `node_modules`, and it adds `dsh-agent-pyq` to the profile's `dsh.profile.bundles` (the bundle layer itself comes from the package's `cordis.patch.yml`).
@@ -203,14 +203,9 @@ Delete them in bulk if you don't want them, or wire one up by adding a registrat
 
 - **npm**: `pnpm publish` (`files` already carries the `lib/` output, the client sourcemap and `cordis.patch.yml`)
 - **tarball**: `pnpm pack`, then `dsh plugin --profile desktop add ./dsh-agent-pyq-0.1.0.tgz`
-- **git**: `dsh plugin add github:you/dsh-agent-pyq` — a GitHub install pulls source and pnpm runs `prepare` to build `lib/`; on pnpm ≥10 the first git-dependency build is refused, so add the package name pnpm prints to the profile's `pnpm-workspace.yaml` and retry:
+- **git**: `dsh plugin add github:dddmxza/dsh-agent-pyq`
 
-```yaml
-allowBuilds:
-  dsh-agent-pyq: true
-```
-
-> That allowlist authorizes executing this package's code at install time — only allow source you trust, and prefer pinning a commit: `github:you/dsh-agent-pyq#<sha>`.
+On the git path: this repo **commits the `lib/` build output** and `package.json` has no `prepare` script, so a git install works as-is — it does not trip pnpm ≥10's "refused to run build scripts of a dependency", and therefore needs no `allowBuilds` allowlist. The trade-off is that after editing `src/` you must run `pnpm build` and commit `lib/` too.
 
 ## Related docs
 

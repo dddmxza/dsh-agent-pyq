@@ -19,7 +19,7 @@
 dsh plugin --profile desktop add dsh-agent-pyq
 
 # 或者从本地目录安装（开发时常用）
-dsh plugin --profile desktop add D:/workspace/projects/my-moments-plugin
+dsh plugin --profile desktop add /path/to/dsh-agent-pyq
 ```
 
 安装会做两件事：把包装进 profile 的 `node_modules`，并把 `dsh-agent-pyq` 加进 profile 的 `dsh.profile.bundles`（bundle 层由包内的 `cordis.patch.yml` 提供）。
@@ -203,14 +203,9 @@ $DSH_HOME/profiles/node_modules/@deepseek-ai/*      ← 宿主随 DSH Desktop �
 
 - **npm**：`pnpm publish`（`files` 已包含 `lib/` 产物、客户端 sourcemap 与 `cordis.patch.yml`）
 - **tarball**：`pnpm pack`，然后 `dsh plugin --profile desktop add ./dsh-agent-pyq-0.1.0.tgz`
-- **git**：`dsh plugin add github:you/dsh-agent-pyq` —— GitHub 安装拉的是源码，pnpm 会跑 `prepare` 构建 `lib/`；pnpm ≥10 首次会拒绝执行 git 依赖的构建脚本，把 pnpm 提示的包名加进 profile 的 `pnpm-workspace.yaml` 后重试：
+- **git**：`dsh plugin add github:dddmxza/dsh-agent-pyq`
 
-```yaml
-allowBuilds:
-  dsh-agent-pyq: true
-```
-
-> 该 allowlist 等于授权在安装时执行这个包的代码，只应允许你信任的源码，并建议锁 commit：`github:you/dsh-agent-pyq#<sha>`。
+关于 git 安装：本仓库**把 `lib/` 构建产物一起提交了**，且 `package.json` 里没有 `prepare` 脚本，所以 git 安装拉下来即可用——不会触发 pnpm ≥10 的「拒绝执行依赖构建脚本」，也就不需要 `allowBuilds` 白名单。代价是改了 `src/` 之后要记得 `pnpm build` 并把 `lib/` 一起提交。
 
 ## 相关文档
 
