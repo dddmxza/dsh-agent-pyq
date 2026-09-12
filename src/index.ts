@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { BlockAssembler, createUserMessage, deepFreeze } from '@deepseek-ai/dsh-llm'
+import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { tmpdir } from 'os'
 import path from 'path'
 import fs from 'fs'
@@ -31,6 +31,27 @@ declare module '@deepseek-ai/cordis' {
       currentSelection(): { provider: string; model: string }
     }
   }
+}
+
+// 本地 deepFreeze：0.1.1 时代它由 `@deepseek-ai/dsh-llm` 导出，
+// 0.1.5 起该工具已迁到 `@deepseek-ai/dsh-util-values`，宿主只提供 0.1.5+，
+// 因此这里内联一份等价实现，避免插件被某个 dsh-llm 版本绑定。
+// 语义与 dsh-llm 原实现一致：只冻结对象/数组，跳过 AbortSignal，处理循环引用。
+function deepFreeze<T>(value: T): T {
+  const seen = new WeakSet<object>()
+  const pending: unknown[] = [value]
+  while (pending.length > 0) {
+    const node = pending.pop()
+    if (node === null || typeof node !== 'object') continue
+    if (node instanceof AbortSignal) continue
+    if (seen.has(node)) continue
+    seen.add(node)
+    Object.freeze(node)
+    for (const key of Object.keys(node)) {
+      pending.push((node as Record<string, unknown>)[key])
+    }
+  }
+  return value
 }
 
 export const name = 'dsh-agent-pyq'
