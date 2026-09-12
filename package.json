@@ -27,6 +27,7 @@
     "lib/service.js",
     "lib/hook.js",
     "lib/client.js",
+    "lib/client.js.map",
     "lib/index.d.ts",
     "lib/service.d.ts",
     "lib/hook.d.ts",

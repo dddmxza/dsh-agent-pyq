@@ -17,7 +17,9 @@ const lib = {
 }
 
 // Client half: browser bundle distributed by dsh client-modules.
-const CLIENT_EXTERNALS = ['react']
+// 这两项都来自宿主 __ModuleLoader__ 的共享模块表（见 dsh-web-frontend 里
+// 定义共享模块对象的那个函数）；打进包里会复制一份 React，所以必须 external。
+const CLIENT_EXTERNALS = ['react', 'react/jsx-runtime']
 
 /** Client half: browser config card bundle, output lib/client.js. */
 const client = {

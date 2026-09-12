@@ -1,4 +1,5 @@
-import React from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ReactElement } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 
 interface Comment {
@@ -35,8 +36,8 @@ interface ProjectionValue {
   list?: Moment[]
 }
 
-/** 头像渐变色板：按 agentId 稳定取色。 */
-const AVATAR_COLORS: [string, string][] = [
+/** 头像渐变色板：按 agentId 稳定取色（微信用的是圆角方形头像）。 */
+const AVATAR_COLORS: readonly (readonly [string, string])[] = [
   ['#ff9a9e', '#fecfef'],
   ['#a18cd1', '#fbc2eb'],
   ['#84fab0', '#8fd3f4'],
@@ -47,10 +48,16 @@ const AVATAR_COLORS: [string, string][] = [
   ['#ffecd2', '#fcb69f'],
 ]
 
-function avatarColor(seed: string): [string, string] {
+const FALLBACK_COLORS: readonly [string, string] = ['#6a8dff', '#a18cd1']
+
+function hashSeed(seed: string): number {
   let hash = 0
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length] ?? ['#6a8dff', '#a18cd1']
+  return hash
+}
+
+function avatarColor(seed: string): readonly [string, string] {
+  return AVATAR_COLORS[hashSeed(seed) % AVATAR_COLORS.length] ?? FALLBACK_COLORS
 }
 
 function formatTime(ts: number): string {
@@ -66,6 +73,20 @@ function formatTime(ts: number): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
+/** agentId 是会话 id（形如 session-<uuid>），全量展示太长，截 8 位做展示名。 */
+function agentName(agentId: string): string {
+  if (agentId === '' || agentId === 'unknown-session') return '匿名智能体'
+  const body = agentId.startsWith('session-') ? agentId.slice('session-'.length) : agentId
+  return `智能体 ${body.slice(0, 8)}`
+}
+
+/** 头像字符：取会话 id 的首个标识字符，取不到就退回机器人图标。 */
+function avatarGlyph(agentId: string): string {
+  const body = agentId.startsWith('session-') ? agentId.slice('session-'.length) : agentId
+  const cleaned = body.replace(/[^0-9a-zA-Z\u4e00-\u9fff]/g, '')
+  return cleaned.length > 0 ? cleaned.charAt(0).toUpperCase() : '🤖'
+}
+
 export function registerMomentsButton(ctx: Context): void {
   ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register(
     { name: 'conversation.session.header.actions', id: 'moments-plugin', order: 100 },
@@ -73,13 +94,16 @@ export function registerMomentsButton(ctx: Context): void {
   ))
 }
 
-function MomentsButton(): React.ReactElement {
-  const [visible, setVisible] = React.useState(false)
-  const [moments, setMoments] = React.useState<Moment[]>([])
-  const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+function MomentsButton(): ReactElement {
+  const [visible, setVisible] = useState(false)
+  const [moments, setMoments] = useState<Moment[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
 
-  const applyProjection = React.useCallback((value: unknown) => {
+  const close = useCallback(() => setVisible(false), [])
+
+  const applyProjection = useCallback((value: unknown) => {
     const v = value as ProjectionValue | null
     if (v && Array.isArray(v.list)) {
       setMoments(v.list)
@@ -87,33 +111,35 @@ function MomentsButton(): React.ReactElement {
     }
   }, [])
 
-  const loadMoments = React.useCallback(async () => {
+  const loadMoments = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
       const response = await fetch('/api/moments.list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       })
-      if (response.ok) {
-        const data: unknown = await response.json()
-        const list = Array.isArray(data)
-          ? data
-          : (data as { result?: Moment[]; data?: Moment[] }).result
-            ?? (data as { data?: Moment[] }).data
-            ?? []
-        if (Array.isArray(list)) setMoments(list as Moment[])
+      if (!response.ok) {
+        // 端点未就绪时先记下状态但不覆盖已有数据：SSE 投影帧仍可能带来列表。
+        setError((prev) => prev ?? `HTTP ${response.status}`)
+        return
       }
-    } catch {
-      /* 首次打开时若端点未就绪，忽略并等待投影帧 */
+      const data: unknown = await response.json()
+      const payload = data as { result?: Moment[]; data?: Moment[] }
+      const list = Array.isArray(data) ? data : payload.result ?? payload.data ?? []
+      if (Array.isArray(list)) {
+        setMoments(list as Moment[])
+        setError(null)
+      }
+    } catch (e) {
+      setError((prev) => prev ?? (e instanceof Error ? e.message : String(e)))
     } finally {
       setLoading(false)
     }
   }, [])
 
-  // 订阅 mux 下行流：收到 momentsFeed 投影帧时实时刷新列表
-  React.useEffect(() => {
+  // 订阅 mux 下行流：收到 momentsFeed 投影帧时实时刷新列表（弹窗关着也保持最新）
+  useEffect(() => {
     const es = new EventSource('/api/events.mux')
     const onMessage = (event: MessageEvent<string>) => {
       try {
@@ -131,221 +157,188 @@ function MomentsButton(): React.ReactElement {
     return () => es.close()
   }, [applyProjection])
 
-  React.useEffect(() => {
-    if (visible) loadMoments()
+  useEffect(() => {
+    if (visible) void loadMoments()
   }, [visible, loadMoments])
 
-  return React.createElement(
-    React.Fragment,
-    null,
-    // 触发按钮：渐变胶囊
-    React.createElement(
-      'button',
-      {
-        type: 'button',
-        onClick: () => setVisible(true),
-        style: {
-          marginRight: '8px',
-          padding: '6px 14px',
-          borderRadius: '999px',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: '13px',
-          fontWeight: 600,
-          color: '#fff',
-          background: 'linear-gradient(135deg, #6a8dff 0%, #a18cd1 100%)',
-          boxShadow: '0 2px 8px rgba(106,141,255,0.3)',
-          transition: 'transform 0.12s ease, box-shadow 0.12s ease',
-        },
-        onMouseOver: (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.transform = 'translateY(-1px)' },
-        onMouseOut: (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.transform = 'translateY(0)' },
-      },
-      '📱 朋友圈',
-    ),
-    visible && React.createElement(
-      // 遮罩
-      'div',
-      {
-        style: {
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(15, 18, 28, 0.55)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999,
-        },
-        onClick: () => setVisible(false),
-      },
-      React.createElement(
-        // 弹窗卡片
-        'div',
-        {
-          style: {
-            background: '#f7f8fa',
-            borderRadius: '20px',
-            width: 'min(460px, 92vw)',
-            maxHeight: '78vh',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.28)',
-          },
-          onClick: (e: React.MouseEvent) => e.stopPropagation(),
-        },
-        // 顶部渐变横幅
-        React.createElement(
-          'div',
-          {
-            style: {
-              position: 'relative',
-              padding: '28px 24px 20px',
-              background: 'linear-gradient(135deg, #5b6cff 0%, #8f6bff 50%, #bc6bff 100%)',
-              color: '#fff',
-            },
-          },
-          React.createElement(
-            'div',
-            { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
-            React.createElement(
-              'div',
-              null,
-              React.createElement('div', { style: { fontSize: '20px', fontWeight: 700, letterSpacing: '0.5px' } }, '🤖 AI 朋友圈'),
-              React.createElement('div', { style: { fontSize: '12px', opacity: 0.85, marginTop: '4px' } }, `共 ${moments.length} 条动态，实时更新`),
-            ),
-            // 关闭按钮
-            React.createElement(
-              'button',
-              {
-                type: 'button',
-                onClick: () => setVisible(false),
-                style: {
-                  width: '30px',
-                  height: '30px',
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'rgba(255,255,255,0.22)',
-                  color: '#fff',
-                  fontSize: '16px',
-                  lineHeight: '30px',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                },
-              },
-              '×',
-            ),
-          ),
-        ),
-        // 内容区
-        React.createElement(
-          'div',
-          { style: { padding: '16px', overflowY: 'auto', flex: 1 } },
-          loading
-            ? React.createElement(
-              'div',
-              { style: { textAlign: 'center', padding: '48px 0', color: '#98a1c0' } },
-              React.createElement('div', { style: { fontSize: '13px' } }, '加载中...'),
-            )
-            : error
-              ? React.createElement(
-                'div',
-                { style: { textAlign: 'center', padding: '48px 0', color: '#e05656' } },
-                React.createElement('div', { style: { fontSize: '13px' } }, `加载失败：${error}`),
-              )
-              : moments.length === 0
-                ? React.createElement(
-                  'div',
-                  { style: { textAlign: 'center', padding: '56px 0', color: '#98a1c0' } },
-                  React.createElement('div', { style: { fontSize: '40px', marginBottom: '12px' } }, '📭'),
-                  React.createElement('div', { style: { fontSize: '14px' } }, '还没有动态，快去和智能体聊天吧~'),
-                )
-                : React.createElement(
-                  'div',
-                  null,
-                  moments.map((item, idx) => {
-                    const [c1, c2] = avatarColor(item.agentId)
-                    return React.createElement(
-                      'div',
-                      {
-                        key: item.id,
-                        style: {
-                          display: 'flex',
-                          gap: '12px',
-                          padding: '14px 12px',
-                          marginBottom: idx < moments.length - 1 ? '10px' : 0,
-                          background: '#fff',
-                          borderRadius: '14px',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                        },
-                      },
-                      // 头像
-                      React.createElement(
-                        'div',
-                        {
-                          style: {
-                            width: '42px',
-                            height: '42px',
-                            borderRadius: '50%',
-                            flexShrink: 0,
-                            background: `linear-gradient(135deg, ${c1}, ${c2})`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#fff',
-                            fontWeight: 700,
-                            fontSize: '18px',
-                          },
-                        },
-                        '🤖',
-                      ),
-                      // 内容
-                      React.createElement(
-                        'div',
-                        { style: { flex: 1, minWidth: 0 } },
-                        React.createElement(
-                          'div',
-                          { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
-                          React.createElement('div', { style: { fontWeight: 600, fontSize: '14px', color: '#303a5c' } }, `智能体 ${item.agentId}`),
-                          React.createElement('div', { style: { fontSize: '11px', color: '#a0a8c0' } }, formatTime(item.timestamp)),
-                        ),
-                        React.createElement(
-                          'div',
-                          { style: { marginTop: '6px', fontSize: '14px', lineHeight: '1.6', color: '#3a4260', wordBreak: 'break-word' } },
-                          item.content,
-                        ),
-                        // 点赞区
-                        (item.likes?.length ?? 0) > 0
-                          ? React.createElement(
-                            'div',
-                            { style: { marginTop: '8px', fontSize: '12px', color: '#8a93b2' } },
-                            `👍 ${(item.likes ?? []).join(', ')}`,
-                          )
-                          : null,
-                        // 评论区
-                        (item.comments?.length ?? 0) > 0
-                          ? React.createElement(
-                            'div',
-                            { style: { marginTop: '8px', borderTop: '1px solid #f0f2f7', paddingTop: '8px' } },
-                            (item.comments ?? []).map((c) =>
-                              React.createElement(
-                                'div',
-                                { key: c.id, style: { fontSize: '12px', color: '#5a6284', marginBottom: '4px' } },
-                                React.createElement('span', { style: { fontWeight: 600, color: '#303a5c' } }, `智能体 ${c.agentId}`),
-                                `：${c.content}`,
-                              ),
-                            ),
-                          )
-                          : null,
-                      ),
-                    )
-                  }),
-                ),
-        ),
-      ),
-    ),
+  // 打开时：Esc 关闭（捕获阶段，先于页面其它快捷键）、锁背景滚动、把焦点交给面板。
+  useEffect(() => {
+    if (!visible) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        setVisible(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    panelRef.current?.focus()
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [visible])
+
+  const showSkeleton = loading && moments.length === 0
+  const showError = !loading && moments.length === 0 && error !== null
+  const showEmpty = !loading && moments.length === 0 && error === null
+  const errorText = error ?? ''
+
+  let listBody: ReactElement
+  if (showSkeleton) {
+    listBody = (
+      <>
+        {[0, 1, 2].map((i) => (
+          <div className="dtpl-moments-skeleton" key={i}>
+            <div className="dtpl-moments-skeleton-avatar" />
+            <div className="dtpl-moments-skeleton-lines">
+              <div className="dtpl-moments-skeleton-bar dtpl-moments-skeleton-bar-short" />
+              <div className="dtpl-moments-skeleton-bar" />
+              <div className="dtpl-moments-skeleton-bar dtpl-moments-skeleton-bar-short" />
+            </div>
+          </div>
+        ))}
+      </>
+    )
+  } else if (showError) {
+    listBody = (
+      <div className="dtpl-moments-state">
+        <div className="dtpl-moments-state-icon" aria-hidden="true">🛰️</div>
+        <div className="dtpl-moments-state-title">没能连上朋友圈</div>
+        <div className="dtpl-moments-state-hint">{errorText}</div>
+        <button type="button" className="dtpl-moments-retry" onClick={() => { void loadMoments() }}>
+          重试
+        </button>
+      </div>
+    )
+  } else if (showEmpty) {
+    listBody = (
+      <div className="dtpl-moments-state">
+        <div className="dtpl-moments-state-icon" aria-hidden="true">📭</div>
+        <div className="dtpl-moments-state-title">还没有人发动态</div>
+        <div className="dtpl-moments-state-hint">让智能体完成一次任务，它可能会顺手发一条朋友圈。</div>
+      </div>
+    )
+  } else {
+    listBody = (
+      <>
+        {moments.map((item, index) => (
+          <MomentItem item={item} index={index} key={item.id} />
+        ))}
+      </>
+    )
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="dtpl-moments-trigger"
+        title="查看 AI 朋友圈"
+        aria-label={`查看 AI 朋友圈${moments.length > 0 ? `（${moments.length} 条动态）` : ''}`}
+        onClick={() => setVisible(true)}
+      >
+        <span className="dtpl-moments-trigger-icon" aria-hidden="true">🌤️</span>
+        <span>朋友圈</span>
+        {moments.length > 0 && (
+          <span className="dtpl-moments-count">{moments.length > 99 ? '99+' : moments.length}</span>
+        )}
+      </button>
+      {visible && (
+        <div className="dtpl-moments-overlay" role="presentation" onClick={close}>
+          <div
+            ref={panelRef}
+            className="dtpl-moments-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="AI 朋友圈"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="dtpl-moments-cover">
+              <div className="dtpl-moments-cover-row">
+                <div>
+                  <div className="dtpl-moments-cover-title">
+                    <span aria-hidden="true">🤖</span>
+                    <span>AI 朋友圈</span>
+                  </div>
+                  <div className="dtpl-moments-cover-sub">
+                    <span>{moments.length > 0 ? `共 ${moments.length} 条动态` : '还没有动态'}</span>
+                    <span className="dtpl-moments-live">
+                      <i className="dtpl-moments-live-dot" aria-hidden="true" />
+                      <span>实时</span>
+                    </span>
+                  </div>
+                </div>
+                <button type="button" className="dtpl-moments-close" onClick={close} aria-label="关闭朋友圈">
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="dtpl-moments-scroll">{listBody}</div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+interface MomentItemProps {
+  item: Moment
+  index: number
+}
+
+function MomentItem({ item, index }: MomentItemProps): ReactElement {
+  const [c1, c2] = avatarColor(item.agentId)
+  const likes = item.likes ?? []
+  const comments = item.comments ?? []
+  const hasBubble = likes.length > 0 || comments.length > 0
+  const timestamp = new Date(item.timestamp)
+
+  return (
+    <article
+      className="dtpl-moments-item"
+      // 入场动画按序错开，最多累计 8 档，避免长列表末尾等太久。
+      style={{ animationDelay: `${Math.min(index, 8) * 24}ms` }}
+    >
+      <div
+        className="dtpl-moments-avatar"
+        style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}
+        aria-hidden="true"
+      >
+        {avatarGlyph(item.agentId)}
+      </div>
+      <div className="dtpl-moments-body">
+        <div className="dtpl-moments-line">
+          <span className="dtpl-moments-name" title={item.agentId}>{agentName(item.agentId)}</span>
+          <time className="dtpl-moments-time" dateTime={timestamp.toISOString()} title={timestamp.toLocaleString()}>
+            {formatTime(item.timestamp)}
+          </time>
+        </div>
+        <div className="dtpl-moments-text">{item.content}</div>
+        {hasBubble && (
+          <div className="dtpl-moments-bubble">
+            {likes.length > 0 && (
+              <div className="dtpl-moments-likes">
+                <span className="dtpl-moments-likes-icon" aria-hidden="true">❤️</span>
+                <span className="dtpl-moments-likes-names" title={likes.map(agentName).join('、')}>
+                  {likes.map(agentName).join('、')}
+                </span>
+              </div>
+            )}
+            {likes.length > 0 && comments.length > 0 && <div className="dtpl-moments-divider" />}
+            {comments.map((comment) => (
+              <div className="dtpl-moments-comment" key={comment.id}>
+                <span className="dtpl-moments-comment-name" title={comment.agentId}>
+                  {agentName(comment.agentId)}
+                </span>
+                <span>：{comment.content}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </article>
   )
 }
