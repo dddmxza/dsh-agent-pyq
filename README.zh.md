@@ -155,18 +155,57 @@ node dev/client-load-check.mjs        # 客户端：模拟 __ModuleLoader__ 加�
 $DSH_HOME/profiles/node_modules/@deepseek-ai/*      ← 宿主随 DSH Desktop 一起发布的版本
 ```
 
-所以 **`package.json` 里钉的版本只影响本地类型检查，不影响运行时**。这两者一旦漂移，就会出现「本地 typecheck 全绿、装机即炸」：
+所以 **`peerDependencies` 里写的是"我能在哪些 dsh 上跑"的声明，不决定运行时用哪份代码**；本地 `node_modules` 里那份只影响 typecheck / build。
 
-| 包 | package.json 钉的 | 宿主实际提供 |
+### 铁律：`@deepseek-ai/dsh*` 的 peer 必须是范围，绝不能精确钉
+
+dsh 自 **0.1.7** 起，在组合插件树之前会先做一次版本兼容检查（`dsh-app-boot` 的 `evaluatePluginCompatibility`）：
+
+```js
+// 只检查 @deepseek-ai/dsh 和 @deepseek-ai/dsh-* 这两类 peer
+if (name !== '@deepseek-ai/dsh' && !name.startsWith('@deepseek-ai/dsh-')) continue
+if (!semver.satisfies(runtimeVersion, range, { includePrerelease: true })) peers[name] = range
+```
+
+**任何一条 peer 不满足当前 dsh 版本，整个 bundle 会被直接跳过。** 注意是「加载前跳过」，不是「激活失败」——所以这种故障极其隐蔽：
+
+- 日志里**搜不到**这个插件名，它从来没变成 loader entry；
+- 启动时那句 `warning: N entries did not activate` 里**也不会有**它；
+- 现象就是「装上了，但工具和 UI 全都不在」，跟没装一样。
+
+只有 `--dump-config` 会说真话：
+
+```
+$ dsh --profile desktop --dump-config
+dsh: skipping profile bundle "dsh-agent-pyq":
+  Error: Plugin dsh-agent-pyq@0.1.2 is incompatible with dsh 0.1.7-rc.2:
+  peerDependencies {"@deepseek-ai/dsh-llm":"0.1.1-rc.2","@deepseek-ai/dsh-agent-default-model":"0.1.1-rc.2"}.
+  ... Exact-version exemption: not active.
+```
+
+0.1.2 就是死在这里：那两个 peer 被精确钉成 `0.1.1-rc.2`，宿主一升到 0.1.7-rc.2 整包被拦。**0.1.3 起改成 `^0.1.1-rc.2`**（= `>=0.1.1-rc.2 <0.2.0`，配合闸门的 `includePrerelease: true` 覆盖整个 0.1.x 线，对 0.1.1-rc.2 / 0.1.5-rc.1 / 0.1.7-rc.2 都放行）。
+
+**救急**（不想发新版时）：给已装的精确版本授一次豁免，然后重启 dsh —— 但每次 dsh 升级都要重来：
+
+```sh
+dsh plugin --profile desktop allow-version dsh-agent-pyq@<插件版本> --dsh-version <dsh 版本> --accept-risk
+```
+
+### 当前对照
+
+| 包 | peer 声明 | 宿主 0.1.7-rc.2 提供 |
 |---|---|---|
-| `@deepseek-ai/dsh-llm` | `0.1.1-rc.2` | `0.1.5-rc.1` |
-| `@deepseek-ai/dsh-tools` | `^0.1.0-rc.6` | `0.1.5-rc.1` |
-| `@deepseek-ai/dsh-settings` | `^0.1.0-rc.5` | `0.1.5-rc.1` |
-| `@deepseek-ai/cordis` | `^4.0.1` | `4.0.2` |
+| `@deepseek-ai/dsh-llm` | `^0.1.1-rc.2` | `0.1.7-rc.2` |
+| `@deepseek-ai/dsh-agent-default-model` | `^0.1.1-rc.2` | `0.1.7-rc.2` |
+| `@deepseek-ai/dsh-tools` | `^0.1.0-rc.6` | `0.1.7-rc.2` |
+| `@deepseek-ai/dsh-settings` | `^0.1.0-rc.5` | `0.1.7-rc.2` |
+| `@deepseek-ai/cordis` | `^4.0.1` | `4.0.4`（不在闸门检查范围内） |
 
-已经踩过一次的坑：`deepFreeze` 在 `dsh-llm@0.1.1-rc.2` 里是导出的，`0.1.5-rc.1` 把它迁去了 `@deepseek-ai/dsh-util-values`，于是插件入口的具名导入在加载期直接抛错、整个插件树起不来。现在 `src/index.ts` 内联了一份等价的 `deepFreeze`，不再依赖某个 `dsh-llm` 版本。
+### 另一个已经踩过的坑：`deepFreeze` 被搬走
 
-**建议**：把 `@deepseek-ai/*` 的 peer/dev 依赖抬到与宿主同一版本线，并习惯用 `dev/load-check.mjs` 在装机前把关。
+`deepFreeze` 在 `dsh-llm@0.1.1-rc.2` 里是导出的，`0.1.5-rc.1` 把它迁去了 `@deepseek-ai/dsh-util-values`，于是插件入口的具名导入在加载期直接抛错、整个插件树起不来。现在 `src/index.ts` 内联了一份等价的 `deepFreeze`，不再依赖某个 `dsh-llm` 版本。
+
+**建议**：peer 一律写范围；升级 DSH 之后跑一遍 `node dev/load-check.mjs`（它会拿当前 profile 共享层去 import 构建产物）和 `dsh --profile desktop --dump-config`。
 
 另外，`link:` 安装与复制安装的解析结果不同：
 
@@ -181,7 +220,8 @@ $DSH_HOME/profiles/node_modules/@deepseek-ai/*      ← 宿主随 DSH Desktop �
 
 | 症状 | 原因 | 处理 |
 |---|---|---|
-| `failed to import loader entry dsh-agent-pyq ... does not provide an export named 'X'` | 依赖版本漂移：`X` 在宿主版本里已移除或改名 | 查上表，改成宿主提供的写法（或内联一份实现）；顺手跑 `node dev/load-check.mjs` |
+| 装上了但**完全没生效**，且日志里搜不到插件名 | 版本兼容闸门把 bundle 整个跳过了（peer 范围不满足当前 dsh） | `dsh --profile desktop --dump-config` 看 `skipping profile bundle` 那行；升插件版本，或 `dsh plugin allow-version ...--accept-risk` |
+| `failed to import loader entry dsh-agent-pyq ... does not provide an export named 'X'` | 依赖版本漂移：`X` 在宿主版本里已移除或改名 | 改成宿主提供的写法（或内联一份实现）；顺手跑 `node dev/load-check.mjs` |
 | 装完看不到按钮 | bundle 层是启动时读取的 | 重启 DSH Desktop；再 `dsh --profile desktop --dump-config` 确认有 `# == dsh-agent-pyq` 段 |
 | 弹窗打开了但样式全丢 | `<style>` 没注入，或 `data-plugin` 被别的东西覆盖 | `node dev/client-load-check.mjs` 看样式是否注入、class 是否对得上 |
 | 评论都是「这波可以啊」这种 | LLM 调用失败，走了兜底文案 | 看 `moments-plugin-llm.log` 和「设置 → 模型」里的 key |
@@ -202,8 +242,10 @@ $DSH_HOME/profiles/node_modules/@deepseek-ai/*      ← 宿主随 DSH Desktop �
 ## 发布
 
 - **npm**：`pnpm publish`（`files` 已包含 `lib/` 产物、客户端 sourcemap 与 `cordis.patch.yml`）
-- **tarball**：`pnpm pack`，然后 `dsh plugin --profile desktop add ./dsh-agent-pyq-0.1.0.tgz`
+- **tarball**：`pnpm pack`，然后 `dsh plugin --profile desktop add ./dsh-agent-pyq-0.1.3.tgz`
 - **git**：`dsh plugin add github:dddmxza/dsh-agent-pyq`
+
+发版前记得三件事：`pnpm build` 后把 `lib/` 一起提交；确认 `peerDependencies` 里没有精确钉死的 `@deepseek-ai/dsh*`；`pnpm version` 走 patch/minor 号，别复用已发布的版本。
 
 关于 git 安装：本仓库**把 `lib/` 构建产物一起提交了**，且 `package.json` 里没有 `prepare` 脚本，所以 git 安装拉下来即可用——不会触发 pnpm ≥10 的「拒绝执行依赖构建脚本」，也就不需要 `allowBuilds` 白名单。代价是改了 `src/` 之后要记得 `pnpm build` 并把 `lib/` 一起提交。
 

@@ -155,18 +155,57 @@ At runtime the plugin ships **no** copies of the `@deepseek-ai` runtime; it reso
 $DSH_HOME/profiles/node_modules/@deepseek-ai/*      ← shipped with DSH Desktop
 ```
 
-So **the versions pinned in `package.json` only affect local type-checking, never the runtime**. Once the two drift, you get "typecheck green, crashes on install":
+So **what you write in `peerDependencies` is a declaration of "which dsh versions I can run on", not what the runtime resolves**. The local `node_modules` copy only affects type-checking and builds.
 
-| Package | Pinned in package.json | Actually provided by the host |
+### Hard rule: `@deepseek-ai/dsh*` peers must be ranges, never exact pins
+
+Since **0.1.7**, dsh runs a compatibility check before composing the plugin tree (`evaluatePluginCompatibility` in `dsh-app-boot`):
+
+```js
+// only peers named @deepseek-ai/dsh or @deepseek-ai/dsh-* are checked
+if (name !== '@deepseek-ai/dsh' && !name.startsWith('@deepseek-ai/dsh-')) continue
+if (!semver.satisfies(runtimeVersion, range, { includePrerelease: true })) peers[name] = range
+```
+
+**If any single peer fails to satisfy the running dsh version, the entire bundle is skipped.** Note it is skipped *before* loading, not "fails to activate" — which makes the failure very quiet:
+
+- grepping the log for the plugin name finds **nothing** — it never became a loader entry;
+- the startup line `warning: N entries did not activate` **does not** list it either;
+- the symptom is simply "installed, but the tools and UI are all missing".
+
+Only `--dump-config` tells the truth:
+
+```
+$ dsh --profile desktop --dump-config
+dsh: skipping profile bundle "dsh-agent-pyq":
+  Error: Plugin dsh-agent-pyq@0.1.2 is incompatible with dsh 0.1.7-rc.2:
+  peerDependencies {"@deepseek-ai/dsh-llm":"0.1.1-rc.2","@deepseek-ai/dsh-agent-default-model":"0.1.1-rc.2"}.
+  ... Exact-version exemption: not active.
+```
+
+0.1.2 died exactly here: those two peers were pinned to the exact `0.1.1-rc.2`, so once the host moved to 0.1.7-rc.2 the whole bundle was rejected. **From 0.1.3 they are `^0.1.1-rc.2`** (= `>=0.1.1-rc.2 <0.2.0`, which with the gate's `includePrerelease: true` covers the whole 0.1.x line — it passes on 0.1.1-rc.2, 0.1.5-rc.1 and 0.1.7-rc.2 alike).
+
+**Stopgap** (if you'd rather not publish): grant the installed exact version an exemption and restart dsh — but you'll have to redo it after every dsh upgrade:
+
+```sh
+dsh plugin --profile desktop allow-version dsh-agent-pyq@<plugin version> --dsh-version <dsh version> --accept-risk
+```
+
+### Current state
+
+| Package | Peer range declared | Provided by host 0.1.7-rc.2 |
 |---|---|---|
-| `@deepseek-ai/dsh-llm` | `0.1.1-rc.2` | `0.1.5-rc.1` |
-| `@deepseek-ai/dsh-tools` | `^0.1.0-rc.6` | `0.1.5-rc.1` |
-| `@deepseek-ai/dsh-settings` | `^0.1.0-rc.5` | `0.1.5-rc.1` |
-| `@deepseek-ai/cordis` | `^4.0.1` | `4.0.2` |
+| `@deepseek-ai/dsh-llm` | `^0.1.1-rc.2` | `0.1.7-rc.2` |
+| `@deepseek-ai/dsh-agent-default-model` | `^0.1.1-rc.2` | `0.1.7-rc.2` |
+| `@deepseek-ai/dsh-tools` | `^0.1.0-rc.6` | `0.1.7-rc.2` |
+| `@deepseek-ai/dsh-settings` | `^0.1.0-rc.5` | `0.1.7-rc.2` |
+| `@deepseek-ai/cordis` | `^4.0.1` | `4.0.4` (not covered by the gate) |
 
-A real bite from this: `deepFreeze` was exported by `dsh-llm@0.1.1-rc.2`, but `0.1.5-rc.1` moved it to `@deepseek-ai/dsh-util-values` — the named import then threw at load time and took the whole plugin tree down. `src/index.ts` now inlines an equivalent `deepFreeze` so it no longer depends on any particular `dsh-llm` version.
+### Another bite already taken: `deepFreeze` moved
 
-**Recommendation**: raise the `@deepseek-ai/*` peer/dev deps to the host's version line, and make `dev/load-check.mjs` part of your routine before installing.
+`deepFreeze` was exported by `dsh-llm@0.1.1-rc.2`, but `0.1.5-rc.1` moved it to `@deepseek-ai/dsh-util-values` — the named import then threw at load time and took the whole plugin tree down. `src/index.ts` now inlines an equivalent `deepFreeze` so it no longer depends on any particular `dsh-llm` version.
+
+**Recommendation**: always use ranges for these peers, and after every DSH upgrade run `node dev/load-check.mjs` (it imports the build output against the live profile shared layer) plus `dsh --profile desktop --dump-config`.
 
 Also note `link:` installs and copied installs resolve differently:
 
@@ -181,7 +220,8 @@ Start with the log: `%APPDATA%\DSH Desktop\logs\host\dsh-<YYYY-MM-DD>.log`.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `failed to import loader entry dsh-agent-pyq ... does not provide an export named 'X'` | dependency drift: `X` was removed or renamed in the host version | check the table above and switch to what the host provides (or inline an equivalent); run `node dev/load-check.mjs` |
+| Installed but **nothing takes effect**, and the log never mentions the plugin | the compatibility gate skipped the whole bundle (a peer range doesn't satisfy the running dsh) | run `dsh --profile desktop --dump-config` and look for `skipping profile bundle`; upgrade the plugin, or `dsh plugin allow-version ... --accept-risk` |
+| `failed to import loader entry dsh-agent-pyq ... does not provide an export named 'X'` | dependency drift: `X` was removed or renamed in the host version | switch to what the host provides (or inline an equivalent); run `node dev/load-check.mjs` |
 | No button after installing | bundle layers are read at boot | restart DSH Desktop, then confirm `# == dsh-agent-pyq` via `dsh --profile desktop --dump-config` |
 | Modal opens but is unstyled | the `<style>` was never injected, or `data-plugin` got claimed by something else | run `node dev/client-load-check.mjs` to check injection + class/CSS consistency |
 | Every comment is canned text | LLM call failed, fell back | check `moments-plugin-llm.log` and the key under "Settings → Models" |
@@ -202,8 +242,10 @@ Delete them in bulk if you don't want them, or wire one up by adding a registrat
 ## Publishing
 
 - **npm**: `pnpm publish` (`files` already carries the `lib/` output, the client sourcemap and `cordis.patch.yml`)
-- **tarball**: `pnpm pack`, then `dsh plugin --profile desktop add ./dsh-agent-pyq-0.1.0.tgz`
+- **tarball**: `pnpm pack`, then `dsh plugin --profile desktop add ./dsh-agent-pyq-0.1.3.tgz`
 - **git**: `dsh plugin add github:dddmxza/dsh-agent-pyq`
+
+Before publishing: build and commit `lib/` alongside the source; make sure no `@deepseek-ai/dsh*` peer is pinned to an exact version; and bump the version rather than reusing one that is already on npm.
 
 On the git path: this repo **commits the `lib/` build output** and `package.json` has no `prepare` script, so a git install works as-is — it does not trip pnpm ≥10's "refused to run build scripts of a dependency", and therefore needs no `allowBuilds` allowlist. The trade-off is that after editing `src/` you must run `pnpm build` and commit `lib/` too.
 
