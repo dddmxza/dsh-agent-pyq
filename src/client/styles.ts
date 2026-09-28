@@ -207,7 +207,9 @@ export function injectStyles(): void {
 }
 .dtpl-moments-trigger:active { transform: scale(.97); }
 .dtpl-moments-trigger:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
-.dtpl-moments-trigger-icon { font-size: 13px; line-height: 1; }
+.dtpl-moments-trigger-icon { display: inline-flex; align-items: center; }
+/* 内联 SVG 图标的公共壳：尺寸由 svg 自己的 width/height 决定，这里只管不参与压缩 */
+.dtpl-moments-icon { flex: none; display: block; }
 .dtpl-moments-count {
   min-width: 16px; height: 16px; padding: 0 5px; box-sizing: border-box;
   display: inline-flex; align-items: center; justify-content: center;
@@ -245,11 +247,25 @@ export function injectStyles(): void {
 /* ---- 封面 ---- */
 .dtpl-moments-cover {
   position: relative; flex: none;
+  /* 封面三个停靠色：浅色下是纯品牌紫；深色下用 color-mix 往深蓝底上混，避免一大片
+     高亮色块压在 near-black 面板上（宿主自己也在用 color-mix(in oklab, …)）。 */
+  --dtpl-moments-cover-a: #5b6cff;
+  --dtpl-moments-cover-b: #8f6bff;
+  --dtpl-moments-cover-c: #c46bff;
   padding: 20px 20px 18px;
   color: #fff;
   background:
     radial-gradient(130% 170% at 8% -30%, rgba(255, 255, 255, .30), rgba(255, 255, 255, 0) 62%),
-    linear-gradient(135deg, #5b6cff 0%, #8f6bff 52%, #c46bff 100%);
+    linear-gradient(135deg,
+      var(--dtpl-moments-cover-a) 0%,
+      var(--dtpl-moments-cover-b) 52%,
+      var(--dtpl-moments-cover-c) 100%);
+}
+/* 深色主题（宿主就是往 body 上挂 data-ds-dark-theme）：把封面压到和 layer-850/800 同一亮度带。 */
+body[data-ds-dark-theme] .dtpl-moments-cover {
+  --dtpl-moments-cover-a: color-mix(in oklab, #5b6cff 52%, #0f1226);
+  --dtpl-moments-cover-b: color-mix(in oklab, #8f6bff 50%, #131028);
+  --dtpl-moments-cover-c: color-mix(in oklab, #c46bff 46%, #170f2a);
 }
 .dtpl-moments-cover-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .dtpl-moments-cover-title {
@@ -272,7 +288,7 @@ export function injectStyles(): void {
   100% { box-shadow: 0 0 0 0 rgba(110, 231, 168, 0); }
 }
 .dtpl-moments-close {
-  flex: none; width: 28px; height: 28px;
+  flex: none; width: 30px; height: 30px;
   display: inline-flex; align-items: center; justify-content: center;
   appearance: none; border: 0; padding: 0; cursor: pointer;
   border-radius: 50%;
@@ -287,8 +303,8 @@ export function injectStyles(): void {
 /* ---- 列表 ---- */
 .dtpl-moments-scroll {
   flex: 1; min-height: 0; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 14px;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px;
   /* 宿主滚动条变量在面板范围内覆盖一次，与内置弹窗同款观感 */
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
@@ -303,15 +319,18 @@ export function injectStyles(): void {
 
 /* 动态卡片：与宿主内置卡片同款「bg-layer-3 + elevation-stroke」的浮起方式 */
 .dtpl-moments-item {
-  display: flex; gap: 10px;
-  padding: 12px;
+  display: flex; gap: 11px;
+  padding: 13px;
   border-radius: 14px;
   background: var(--dsw-alias-bg-layer-3);
   box-shadow: var(--dsw-elevation-stroke);
   transition: background .16s;
   animation: dtpl-moments-in .26s ease-out backwards;
 }
-.dtpl-moments-item:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.dtpl-moments-item:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  box-shadow: var(--dsw-elevation-stroke), 0 1px 2px rgba(0, 0, 0, .05);
+}
 @keyframes dtpl-moments-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
@@ -321,7 +340,9 @@ export function injectStyles(): void {
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: 15px; font-weight: 700; line-height: 1;
   user-select: none;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .18);
+  /* 外描边走主题令牌（浅色头像上白色高光会消失），内高光只负责一点玻璃感 */
+  box-shadow: var(--dsw-elevation-stroke), inset 0 0 0 1px rgba(255, 255, 255, .14);
 }
 .dtpl-moments-body { flex: 1; min-width: 0; }
 .dtpl-moments-line { display: flex; align-items: baseline; gap: 8px; }
@@ -331,7 +352,7 @@ export function injectStyles(): void {
 }
 .dtpl-moments-time { flex: none; margin-left: auto; font-size: 11px; color: var(--dsw-alias-label-caption); }
 .dtpl-moments-text {
-  margin-top: 4px; font-size: 14px; line-height: 1.62;
+  margin-top: 6px; font-size: 14px; line-height: 1.7;
   color: var(--dsw-alias-label-primary);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
@@ -352,21 +373,25 @@ export function injectStyles(): void {
   display: flex; align-items: center; gap: 6px;
   font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary);
 }
-.dtpl-moments-likes-icon { flex: none; font-size: 11px; line-height: 1; }
+.dtpl-moments-likes-icon { flex: none; display: inline-flex; color: var(--dsw-alias-state-error-primary); }
 .dtpl-moments-likes-names {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.dtpl-moments-divider { height: 1px; margin: 6px 0; background: var(--dsw-alias-border-l2); }
-.dtpl-moments-comment { font-size: 12px; line-height: 1.65; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
-.dtpl-moments-comment + .dtpl-moments-comment { margin-top: 3px; }
+.dtpl-moments-divider { height: 1px; margin: 7px 0; background: var(--dsw-alias-border-l2); }
+.dtpl-moments-comment { font-size: 12px; line-height: 1.7; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
+.dtpl-moments-comment + .dtpl-moments-comment { margin-top: 4px; }
 .dtpl-moments-comment-name { font-weight: 600; color: var(--dsw-alias-link); }
+.dtpl-moments-comment-rel { color: var(--dsw-alias-label-tertiary); }
 
 /* ---- 空 / 加载 / 出错 ---- */
 .dtpl-moments-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   padding: 52px 16px; text-align: center;
 }
-.dtpl-moments-state-icon { font-size: 40px; line-height: 1; }
+.dtpl-moments-state-icon {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--dsw-alias-label-tertiary); line-height: 1;
+}
 .dtpl-moments-state-title { font-size: 14px; font-weight: 600; color: var(--dsw-alias-label-secondary); }
 .dtpl-moments-state-hint { max-width: 260px; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-tertiary); }
 .dtpl-moments-retry {
@@ -381,7 +406,7 @@ export function injectStyles(): void {
 .dtpl-moments-retry:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
 
 .dtpl-moments-skeleton {
-  display: flex; gap: 10px; padding: 12px;
+  display: flex; gap: 11px; padding: 13px;
   border-radius: 14px;
   background: var(--dsw-alias-bg-layer-3);
   box-shadow: var(--dsw-elevation-stroke);

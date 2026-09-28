@@ -6,9 +6,13 @@
     - id: dsh-agent-pyq
       name: dsh-agent-pyq
       config:
-        greeting: 'Hello from dsh-agent-pyq'
-        maxRetries: 3
-        verbose: false
+        # 展示名自动取预设自己声明的 name，所以全部留空是推荐做法。
+        # 只有想给某个角色改昵称时才写 name：（例：jingwen: { name: '静文姐' }）。
+        identities:
+          jingwen: {}
+          jinn: {}
+          lily: {}
+          portrait-master: {}
     # 可选：示例 Service 插件（见 src/service.ts）。需要时删除下面两行注释，
     # 并确保构建产物 lib/service.js 存在（tsdown 已包含该入口）。
     # - id: dsh-agent-pyq-service

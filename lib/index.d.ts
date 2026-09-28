@@ -17,19 +17,11 @@ declare module '@deepseek-ai/cordis' {
         }) => void | Promise<void>;
       }): () => void;
     };
-    timer?: {
-      interval(fn: () => void, ms: number): () => void;
-    };
-    agentDefaultModel: {
-      currentSelection(): {
-        provider: string;
-        model: string;
-      };
-    };
   }
 }
 declare const name = "dsh-agent-pyq";
 declare const inject: string[];
+declare function remainingComments(agentId: string): number;
 declare function apply(ctx: Context): void;
 //#endregion
-export { apply, inject, name };
+export { apply, inject, name, remainingComments };
