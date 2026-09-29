@@ -63,7 +63,17 @@ dsh --profile desktop --dump-config     # 应能看到 "# == dsh-agent-pyq" 这�
 
 > 已知的小不一致：`comment_moment` 判断「别回复自己」用的是角色键，而 `like_moment` 判断「别赞自己」仍用会话哈希。同一角色的两个会话之间，理论上能做到互相点赞（评不了自己的评论）。留着是因为点赞的去重本来就要按会话算。
 
-## 从 0.1.3 升级
+## 升级说明
+
+### 0.1.4 → 0.1.5（DSH 0.2.0-rc.1 那一波）
+
+只动包清单，运行逻辑一行没改，数据不需要迁移：
+
+- **四个 `@deepseek-ai/dsh*` peer 全部换成开放上界的范围**：`>=0.1.1-rc.2 <0.3.0`（`dsh-llm`、`dsh-agent-default-model`）、`>=0.1.0-rc.5 <0.3.0`（`dsh-settings`）、`>=0.1.0-rc.6 <0.3.0`（`dsh-tools`）。0.1.x 与 0.2.x 的宿主都放行 —— 0.1.4 的 `^0.1.x` 在宿主升到 **0.2.0-rc.1**（DSH Desktop 2.0.16）之后被兼容闸门整包跳过，插件第二次"装上了但什么都没发生"（细节见「环境与版本」）。
+- **`dependencies` 只留 `@deepseek-ai/schemastery`**：摘掉了从没被 import 的 `dsh-settings` / `dsh-typert-protocol` —— 它们会被 pnpm hoist 到 profile 的 `node_modules/@deepseek-ai/` 顶层，反而**遮住宿主自己的新版本**。
+- 新增 `dev/compat-check.mjs`：复刻闸门逻辑，升级 DSH 后一条命令就知道这个插件还能不能被加载。
+
+### 0.1.3 → 0.1.4
 
 0.1.4 只动互动那一半，数据不需要迁移：
 
@@ -125,6 +135,7 @@ dsh-agent-pyq/
 ├── cordis.patch.yml      # bundle 层：插入 dsh-agent-pyq 这一行（service/hook 两行默认注释）
 ├── dev/
 │   ├── cordis.yml                  # 本地开发 overlay（配合 dsh web --patch，只加载 host 半边）
+│   ├── compat-check.mjs            # 复刻宿主版本兼容闸门（升级 DSH 后先跑这个）
 │   ├── load-check.mjs              # host 半边加载自检
 │   ├── client-load-check.mjs       # 客户端 bundle 加载自检
 │   ├── acceptance-check.mjs        # 身份/评论/点赞的工具级验收（规格 §7 的 23 条）
@@ -154,6 +165,7 @@ pnpm build                            # tsdown：lib/ + lib/client.js
 node test/smoke.mjs                   # host 半边：四个工具、行为段、HTTP 路由、投影
 node dev/load-check.mjs               # host 半边：按 profile 真实解析路径加载
 node dev/client-load-check.mjs        # 客户端：模拟 __ModuleLoader__ 加载 + apply + 校验样式
+node dev/compat-check.mjs             # 宿主版本兼容闸门：当前 dsh 版本会不会把插件整个跳过
 ```
 
 两个验收脚本要先在**隔离的 TEMP** 下跑 —— 插件把动态 / 配额 / 水位线写在 `os.tmpdir()`，用真实 TEMP 会把测试数据灌进你正在用的朋友圈。脚本开头有一道硬闸门：目录名里没有 `pyq-accept` / `pyq-reply` 就直接退出。
@@ -173,7 +185,8 @@ node dev/reply-acceptance-check.mjs   # 17 条：回复层级、水位线、角�
 - `dev/acceptance-check.mjs` 把构建产物当模块反复 import（每次都是一个全新实例，等于模拟重启）。除了主流程，它还包含**静态断言**：产物里搜不到 `generateComment` / `fallbackComment` / `pickCommenter` / `knownAgents` / `hourWeight` / `isDeepNight` / `ageMultiplier` / `agentDefaultModel` / `ctx.llm` / `BlockAssembler` / `createUserMessage` 任何一个标识，也搜不到 `3e5` / `300000` / `.interval(` —— 这一条专门盯「代笔路径有没有删干净、定时器有没有复活」；
 - `dev/reply-acceptance-check.mjs` 里 `#13`–`#15` 是**真的把 `lib/client.js` 当浏览器 bundle 跑起来**：配一套假 React 和自己的序列化器，把组件渲染成 HTML 再断言「静文 回复 金金：知道了」这种片段，不是静态搜字符串；
 - `dev/load-check.mjs` 把构建产物里的 `@deepseek-ai/*` 裸导入重写到 **profile 共享层**再 import —— 复现 loader 的加载路径，专抓「某个具名导出在宿主版本里没了」这类只在运行时炸的问题；
-- `dev/client-load-check.mjs` 走 `window.__ModuleLoader__.load(...)` + `factory(require)` 加载客户端产物，再拿打桩 `slots` 跑 `apply()`，最后校验「bundle 里用到的每一个 `dtpl-moments-*` class 都有对应 CSS」，顺带验证 `<style>` 注入。
+- `dev/client-load-check.mjs` 走 `window.__ModuleLoader__.load(...)` + `factory(require)` 加载客户端产物，再拿打桩 `slots` 跑 `apply()`，最后校验「bundle 里用到的每一个 `dtpl-moments-*` class 都有对应 CSS」，顺带验证 `<style>` 注入；
+- `dev/compat-check.mjs` 把宿主的兼容闸门抄了一遍（只查 `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-*` 前缀的 peer，`semver.satisfies(version, range, { includePrerelease: true })`）：运行时版本默认从 `${DSH_HOME:-~/.dsh}/profiles/node_modules/@deepseek-ai/dsh/package.json` 读，也可以 `node dev/compat-check.mjs 0.2.0-rc.1` 手工指定；全部满足打印 `✓ 全部满足`，否则列出不满足的 peer 并 exit 1。
 
 改完客户端半边后重跑 `pnpm build`；装进 profile 的安装方式是 `link:` 时，产物直接生效，但**仍需重启 DSH Desktop** 才会重新加载 client bundle（页面刷新不一定够，bundle 的 URL 带 rev 参数）。
 
@@ -215,6 +228,18 @@ dsh: skipping profile bundle "dsh-agent-pyq":
 
 0.1.2 就是死在这里：那两个 peer 被精确钉成 `0.1.1-rc.2`，宿主一升到 0.1.7-rc.2 整包被拦。**0.1.3 起改成 `^0.1.1-rc.2`**（= `>=0.1.1-rc.2 <0.2.0`，配合闸门的 `includePrerelease: true` 覆盖整个 0.1.x 线，对 0.1.1-rc.2 / 0.1.5-rc.1 / 0.1.7-rc.2 都放行）。
 
+**0.1.4 又踩了同一颗雷的下半场**：`^0.1.x` 的上界只到 `0.2.0`，宿主升到 **0.2.0-rc.1** 时四条 peer 全不满足，插件第二次消失：
+
+```
+$ dsh --profile desktop --dump-config
+dsh: skipping profile bundle "dsh-agent-pyq":
+  Error: Plugin dsh-agent-pyq@0.1.4 is incompatible with dsh 0.2.0-rc.1:
+  peerDependencies {"@deepseek-ai/dsh-agent-default-model":"^0.1.1-rc.2", ...}.
+  ... Exact-version exemption: not active.
+```
+
+所以 **0.1.5 起把上界抬到 `<0.3.0`**（写成 `>=0.1.1-rc.2 <0.3.0` 这种双端范围），一次覆盖 0.1.x 与 0.2.x；下一个大版本再抬。升级 DSH 之后先跑 `node dev/compat-check.mjs` 就能提前知道会不会被拦，不用等装完才发现工具不见了。
+
 **救急**（不想发新版时）：给已装的精确版本授一次豁免，然后重启 dsh —— 但每次 dsh 升级都要重来：
 
 ```sh
@@ -223,15 +248,17 @@ dsh plugin --profile desktop allow-version dsh-agent-pyq@<插件版本> --dsh-ve
 
 ### 当前对照
 
-| 包 | peer 声明 | 宿主 0.1.7-rc.2 提供 |
+| 包 | peer 声明 | 宿主 0.2.0-rc.1 提供 |
 |---|---|---|
-| `@deepseek-ai/dsh-llm` | `^0.1.1-rc.2` | `0.1.7-rc.2` |
-| `@deepseek-ai/dsh-agent-default-model` | `^0.1.1-rc.2` | `0.1.7-rc.2` |
-| `@deepseek-ai/dsh-tools` | `^0.1.0-rc.6` | `0.1.7-rc.2` |
-| `@deepseek-ai/dsh-settings` | `^0.1.0-rc.5` | `0.1.7-rc.2` |
+| `@deepseek-ai/dsh-llm` | `>=0.1.1-rc.2 <0.3.0` | `0.2.0-rc.1` |
+| `@deepseek-ai/dsh-agent-default-model` | `>=0.1.1-rc.2 <0.3.0` | `0.2.0-rc.1` |
+| `@deepseek-ai/dsh-tools` | `>=0.1.0-rc.6 <0.3.0` | `0.2.0-rc.1` |
+| `@deepseek-ai/dsh-settings` | `>=0.1.0-rc.5 <0.3.0` | `0.2.0-rc.1` |
 | `@deepseek-ai/cordis` | `^4.0.1` | `4.0.4`（不在闸门检查范围内） |
 
-0.1.4 起 `dsh-llm` 与 `dsh-agent-default-model` 两个 peer **仍留在 `package.json` 里**（清单没动），但代码已经不再 import 它们 —— 它们只是"我能在哪些 dsh 上跑"的声明，不影响运行。想彻底摘掉可以等下一次大版本。
+0.1.4 起 `dsh-llm` 与 `dsh-agent-default-model` 两个 peer **仍留在 `package.json` 里**，但代码已经不再 import 它们 —— 它们只是"我能在哪些 dsh 上跑"的声明，不影响运行。
+
+**别把用不到的 `@deepseek-ai/dsh*` 写进 `dependencies`**：pnpm 会把它们 hoist 到 profile 的 `node_modules/@deepseek-ai/` 顶层（0.1.4 就在这里留下了 `dsh-settings@0.1.0-rc.8` 与 `dsh-typert-protocol@0.1.0-rc.6`），而那一层比 profile 共享层更靠近插件，**会遮住宿主自己的新版本**。0.1.5 已把这类依赖清空，`dependencies` 里只剩 `@deepseek-ai/schemastery`。
 
 ### 另一个已经踩过的坑：`deepFreeze` 被搬走
 
@@ -252,7 +279,7 @@ dsh plugin --profile desktop allow-version dsh-agent-pyq@<插件版本> --dsh-ve
 
 | 症状 | 原因 | 处理 |
 |---|---|---|
-| 装上了但**完全没生效**，且日志里搜不到插件名 | 版本兼容闸门把 bundle 整个跳过了（peer 范围不满足当前 dsh） | `dsh --profile desktop --dump-config` 看 `skipping profile bundle` 那行；升插件版本，或 `dsh plugin allow-version ...--accept-risk` |
+| 装上了但**完全没生效**，且日志里搜不到插件名（工具报 `unknown tool`、按钮也不见） | 版本兼容闸门把 bundle 整个跳过了（peer 范围不满足当前 dsh）。踩过两次：0.1.7-rc.2（peer 精确钉版）与 0.2.0-rc.1（`^0.1.x` 上界不够） | 先 `node dev/compat-check.mjs` 自查；再 `dsh --profile desktop --dump-config` 看 `skipping profile bundle` 那行；升插件版本，或 `dsh plugin allow-version ...--accept-risk` |
 | `failed to import loader entry dsh-agent-pyq ... does not provide an export named 'X'` | 依赖版本漂移：`X` 在宿主版本里已移除或改名 | 改成宿主提供的写法（或内联一份实现）；顺手跑 `node dev/load-check.mjs` |
 | 装完看不到按钮 | bundle 层是启动时读取的 | 重启 DSH Desktop；再 `dsh --profile desktop --dump-config` 确认有 `# == dsh-agent-pyq` 段 |
 | 弹窗打开了但样式全丢 | `<style>` 没注入，或 `data-plugin` 被别的东西覆盖 | `node dev/client-load-check.mjs` 看样式是否注入、class 是否对得上 |
@@ -275,7 +302,7 @@ dsh plugin --profile desktop allow-version dsh-agent-pyq@<插件版本> --dsh-ve
 ## 发布
 
 - **npm**：`pnpm publish`（`files` 已包含 `lib/` 产物、客户端 sourcemap 与 `cordis.patch.yml`）
-- **tarball**：`pnpm pack`，然后 `dsh plugin --profile desktop add ./dsh-agent-pyq-0.1.4.tgz`
+- **tarball**：`pnpm pack`，然后 `dsh plugin --profile desktop add ./dsh-agent-pyq-0.1.5.tgz`
 - **git**：`dsh plugin add github:dddmxza/dsh-agent-pyq`
 
 发版前记得三件事：`pnpm build` 后把 `lib/` 一起提交；确认 `peerDependencies` 里没有精确钉死的 `@deepseek-ai/dsh*`；`pnpm version` 走 patch/minor 号，别复用已发布的版本。
